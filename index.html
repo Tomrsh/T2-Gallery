@@ -1,37 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>T2 Gallery</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T2 Authentication</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="min_style.css">
 </head>
 <body>
-  <div class="container">
-    <div class="header-container">
-      <h1>My Gallery</h1>
-      <a href="upload.html" class="upload-btn">
-        <i class="fas fa-cloud-upload-alt"></i> Upload
-      </a>
+    <div class="container">
+        <div class="form-box" id="loginForm">
+            <h2>Welcome Back</h2>
+            <div class="input-group">
+                <input type="email" id="login-email" required>
+                <i class="fas fa-envelope"></i>
+                <label>Email Address</label>
+            </div>
+            <div class="input-group">
+                <input type="password" id="login-password" required>
+                <i class="fas fa-lock"></i>
+                <label>Password</label>
+            </div>
+            <button class="btn" onclick="login()">Sign In</button>
+            <div class="toggle-form">
+                <p>New here? <a onclick="toggleForms()">Create Account</a></p>
+            </div>
+        </div>
+
+        <div class="form-box" id="registerForm" style="display: none;">
+            <h2>Create Account</h2>
+            <div class="input-group">
+                <input type="email" id="register-email" required>
+                <i class="fas fa-envelope"></i>
+                <label>Email Address</label>
+            </div>
+            <div class="input-group">
+                <input type="password" id="register-password" required>
+                <i class="fas fa-lock"></i>
+                <label>Password</label>
+            </div>
+            <button class="btn" onclick="register()">Sign Up</button>
+            <div class="toggle-form">
+                <p>Already have account? <a onclick="toggleForms()">Login Here</a></p>
+            </div>
+        </div>
     </div>
 
-    <!-- ONLY GALLERY GRID (NO FILTERS, NO SECTIONS) -->
-    <div id="gallery" class="gallery-grid"></div>
-    <div id="loading" class="loading-indicator">Loading items...</div>
-  </div>
+    <script>
+        const firebaseConfig = {
+  apiKey: "AIzaSyC4S-WRBFerZmnub3yuY131CpPvfql_NCY",
+  authDomain: "t2upload.firebaseapp.com",
+  databaseURL: "https://t2upload-default-rtdb.firebaseio.com",
+  projectId: "t2upload",
+  storageBucket: "t2upload.appspot.com",
+  messagingSenderId: "1000887477924",
+  appId: "1:1000887477924:web:feba016b5699e9652ea831",
+  measurementId: "G-RNGDJJ1TJ8"
+};
 
-  <!-- Lightbox Modal -->
-  <div id="lightbox" class="lightbox" style="display: none;">
-    <span class="close-btn">&times;</span>
-    <div class="lightbox-content"></div>
-  </div>
+        firebase.initializeApp(firebaseConfig);
 
-  <!-- Firebase & JS -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/gallery.js"></script>
+        function toggleForms() {
+            const login = document.getElementById('login-form');
+            const register = document.getElementById('register-form');
+            login.style.display = login.style.display === 'none' ? 'block' : 'none';
+            register.style.display = register.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(() => window.location.href = "gallery.html")
+                .catch(error => alert(error.message));
+        }
+
+        function register() {
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(() => window.location.href = "gallery.html")
+                .catch(error => alert(error.message));
+        }
+        
+        
+        // फायरबेस और फंक्शन्स पिछले जैसे ही रहेंगे
+        function toggleForms() {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            
+            loginForm.style.display = loginForm.style.display === 'none' ? 'block' : 'none';
+            registerForm.style.display = registerForm.style.display === 'none' ? 'block' : 'none';
+            
+            document.querySelector('.container').classList.toggle('active');
+        }
+
+        // लेबल एनिमेशन के लिए
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', () => {
+                input.previousElementSibling.style.transform = 'translateY(-25px) scale(0.9)';
+            });
+            
+            input.addEventListener('blur', () => {
+                if(!input.value) {
+                    input.previousElementSibling.style.transform = 'translateY(-50%) scale(1)';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

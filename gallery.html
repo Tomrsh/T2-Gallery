@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Gallery</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+      <div class="logo_box">
+    <h1 class="logo_name">T2 Gallery </h1>
+    <img src="/assets/logo.jpg" class="logo" alt="">
+  </div>
+    <div class="gallery-container" id="gallery"></div>
+
+    <div class="upload-container">
+        <input type="file" id="file-upload">
+        <label for="file-upload" class="upload-btn">📤</label>
+    </div>
+
+    <div class="full-view" id="fullView" onclick="closeFullView()">
+        <img id="fullViewImg">
+    </div>
+
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-text" id="progressStatus">Uploading...</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressPercentage">0%</div>
+    </div>
+
+    <div class="delete-btn" id="deleteBtn" onclick="deleteSelectedFile()">🗑️</div>
+
+    <script>
+        const firebaseConfig = {
+  apiKey: "AIzaSyC4S-WRBFerZmnub3yuY131CpPvfql_NCY",
+  authDomain: "t2upload.firebaseapp.com",
+  databaseURL: "https://t2upload-default-rtdb.firebaseio.com",
+  projectId: "t2upload",
+  storageBucket: "t2upload.appspot.com",
+  messagingSenderId: "1000887477924",
+  appId: "1:1000887477924:web:feba016b5699e9652ea831",
+  measurementId: "G-RNGDJJ1TJ8"
+};
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        let currentUser;
+        let selectedFileKey = null;
+        let longPressTimer;
+
+        auth.onAuthStateChanged(user => {
+            if (!user) window.location.href = "index.html";
+            currentUser = user;
+            loadFiles();
+        });
+
+        function loadFiles() {
+            database.ref(`users/${currentUser.uid}/files`).on('value', snapshot => {
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = '';
+                
+                snapshot.forEach(childSnapshot => {
+                    const file = childSnapshot.val();
+                    const item = createGalleryItem(file, childSnapshot.key);
+                    gallery.appendChild(item);
+                });
+            });
+        }
+
+        function createGalleryItem(file, key) {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.dataset.fileKey = key;
+            item.dataset.filePath = file.path;
+
+            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) {
+                item.innerHTML = `<img src="${file.url}" loading="lazy">`;
+            } else {
+                item.innerHTML = `<div class="file-icon">📄</div>`;
+            }
+
+            item.addEventListener('touchstart', startLongPress);
+            item.addEventListener('touchend', endLongPress);
+            item.addEventListener('mousedown', startLongPress);
+            item.addEventListener('mouseup', endLongPress);
+            item.addEventListener('click', handleClick);
+
+            return item;
+        }
+
+        function startLongPress(e) {
+            const item = e.target.closest('.gallery-item');
+            longPressTimer = setTimeout(() => selectFile(item), 500);
+        }
+
+        function endLongPress() {
+            clearTimeout(longPressTimer);
+        }
+
+        function handleClick(e) {
+  const item = e.target.closest('.gallery-item');
+  if (!item) return;
+  
+  // अगर पहले से सिलेक्टेड फाइल को क्लिक किया
+  if (selectedFileKey === item.dataset.fileKey) {
+    // अनसिलेक्ट करें
+    item.classList.remove('selected');
+    selectedFileKey = null;
+    document.getElementById('deleteBtn').style.display = 'none';
+  }
+  // अगर कोई फाइल सिलेक्ट नहीं है
+  else if (!selectedFileKey) {
+    openFullView(item.querySelector('img')?.src);
+  }
+}
+
+        function selectFile(item) {
+  // पहले सिलेक्टेड आइटम को रिमूव करें
+  if (selectedFileKey) {
+    document.querySelector(`[data-file-key="${selectedFileKey}"]`).classList.remove('selected');
+  }
+  
+  selectedFileKey = item.dataset.fileKey;
+  item.classList.add('selected');
+  document.getElementById('deleteBtn').style.display = 'block';
+}
+
+        async function deleteSelectedFile() {
+            if (!selectedFileKey || !confirm('Delete this file?')) return;
+
+            try {
+                await database.ref(`users/${currentUser.uid}/files/${selectedFileKey}`).remove();
+                await storage.ref(document.querySelector(`[data-file-key="${selectedFileKey}"]`).dataset.filePath).delete();
+                
+                document.querySelector(`[data-file-key="${selectedFileKey}"]`).remove();
+                selectedFileKey = null;
+                document.getElementById('deleteBtn').style.display = 'none';
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('Error deleting file!');
+            }
+        }
+
+        function uploadFile() {
+            const file = document.getElementById('file-upload').files[0];
+            if (!file) return;
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressStatus = document.getElementById('progressStatus');
+
+            progressContainer.style.display = 'block';
+            progressStatus.textContent = `Uploading ${file.name}`;
+            progressFill.style.width = '0%';
+            progressPercentage.textContent = '0%';
+
+            const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+            const filePath = `users/${currentUser.uid}/${Date.now()}_${sanitizedFileName}`;
+            const storageRef = storage.ref(filePath);
+            const uploadTask = storageRef.put(file);
+
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    progressFill.style.width = `${progress}%`;
+                    progressPercentage.textContent = `${Math.round(progress)}%`;
+                },
+                (error) => {
+                    progressStatus.textContent = `Error: ${error.message}`;
+                    progressFill.style.backgroundColor = '#ff4444';
+                    setTimeout(() => progressContainer.style.display = 'none', 5000);
+                },
+                () => {
+                    uploadTask.snapshot.ref.getDownloadURL().then(url => {
+                        database.ref(`users/${currentUser.uid}/files`).push({
+                            name: sanitizedFileName,
+                            url: url,
+                            path: filePath,
+                            timestamp: Date.now()
+                        });
+                        progressContainer.style.display = 'none';
+                    });
+                }
+            );
+        }
+
+        function openFullView(url) {
+            document.getElementById('fullViewImg').src = url;
+            document.getElementById('fullView').style.display = 'block';
+        }
+
+        function closeFullView() {
+            document.getElementById('fullView').style.display = 'none';
+        }
+
+        document.getElementById('file-upload').addEventListener('change', uploadFile);
+    </script>
+</body>
+</html>
