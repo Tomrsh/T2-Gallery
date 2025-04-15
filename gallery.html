@@ -135,7 +135,7 @@
 
         function startLongPress(e) {
             const item = e.target.closest('.gallery-item');
-            longPressTimer = setTimeout(() => selectFile(item), 500);
+            longPressTimer = setTimeout(() => selectFile(item), 1000);
         }
 
         function endLongPress() {
