@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Gallery</title>
+    <title>T2 Gallery</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,10 +11,11 @@
     <link rel="stylesheet" href="gall_style.css">
 </head>
 <body>
-      <div class="logo_box">
-    <h1 class="logo_name">T2 Gallery </h1>
-    <img src="/assets/logo.jpg" class="logo" alt="">
-  </div>
+    <div class="logo_box">
+        <h1 class="logo_name">T2 Gallery </h1>
+        <img src="/assets/logo.jpg" class="logo" alt="">
+    </div>
+
     <div class="gallery-container" id="gallery"></div>
 
     <div class="upload-container">
@@ -22,8 +23,9 @@
         <label for="file-upload" class="upload-btn">📤</label>
     </div>
 
-    <div class="full-view" id="fullView" onclick="closeFullView()">
-        <img id="fullViewImg">
+    <div class="full-view" id="fullView">
+        <span class="close-btn" onclick="closeFullView()">&times;</span>
+        <div class="full-content" id="fullContent"></div>
     </div>
 
     <div class="progress-container" id="progressContainer">
@@ -38,15 +40,15 @@
 
     <script>
         const firebaseConfig = {
-  apiKey: "AIzaSyC4S-WRBFerZmnub3yuY131CpPvfql_NCY",
-  authDomain: "t2upload.firebaseapp.com",
-  databaseURL: "https://t2upload-default-rtdb.firebaseio.com",
-  projectId: "t2upload",
-  storageBucket: "t2upload.appspot.com",
-  messagingSenderId: "1000887477924",
-  appId: "1:1000887477924:web:feba016b5699e9652ea831",
-  measurementId: "G-RNGDJJ1TJ8"
-};
+            apiKey: "AIzaSyC4S-WRBFerZmnub3yuY131CpPvfql_NCY",
+            authDomain: "t2upload.firebaseapp.com",
+            databaseURL: "https://t2upload-default-rtdb.firebaseio.com",
+            projectId: "t2upload",
+            storageBucket: "t2upload.appspot.com",
+            messagingSenderId: "1000887477924",
+            appId: "1:1000887477924:web:feba016b5699e9652ea831",
+            measurementId: "G-RNGDJJ1TJ8"
+        };
 
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
@@ -64,29 +66,43 @@
         });
 
         function loadFiles() {
-            database.ref(`users/${currentUser.uid}/files`).on('value', snapshot => {
-                const gallery = document.getElementById('gallery');
-                gallery.innerHTML = '';
-                
-                snapshot.forEach(childSnapshot => {
-                    const file = childSnapshot.val();
-                    const item = createGalleryItem(file, childSnapshot.key);
-                    gallery.appendChild(item);
-                });
-            });
-        }
+  database.ref(`users/${currentUser.uid}/files`).off('value'); // पुराने लिस्नर्स हटाएं
+  database.ref(`users/${currentUser.uid}/files`).on('value', snapshot => {
+    const gallery = document.getElementById('gallery');
+    gallery.innerHTML = '';
+    
+    snapshot.forEach(childSnapshot => {
+      const file = childSnapshot.val();
+      const item = createGalleryItem(file, childSnapshot.key);
+      gallery.appendChild(item);
+    });
+  });
+}
 
         function createGalleryItem(file, key) {
-            const item = document.createElement('div');
-            item.className = 'gallery-item';
-            item.dataset.fileKey = key;
-            item.dataset.filePath = file.path;
+  const item = document.createElement('div');
+  item.className = 'gallery-item';
+  item.dataset.fileKey = key;
+  item.dataset.filePath = file.path;
+  item.dataset.fileType = getFileType(file.name);
+  
+  const fileType = item.dataset.fileType;
+  let content = '';
+  
+  if (fileType === 'image') {
+    content = `<img src="${file.url}" loading="lazy">`;
+  } else if (fileType === 'video') {
+    content = `
+                    <video controls preload="metadata">
+                        <source src="${file.url}#t=0.1" type="video/mp4">
+                    </video>
+                `;
+  } else {
+    const icon = getFileIcon(file.name);
+    content = `<div class="file-icon">${icon}</div>`;
+  }
 
-            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)) {
-                item.innerHTML = `<img src="${file.url}" loading="lazy">`;
-            } else {
-                item.innerHTML = `<div class="file-icon">📄</div>`;
-            }
+            item.innerHTML = content;
 
             item.addEventListener('touchstart', startLongPress);
             item.addEventListener('touchend', endLongPress);
@@ -95,6 +111,26 @@
             item.addEventListener('click', handleClick);
 
             return item;
+        }
+
+        function getFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
+            if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return 'video';
+            return 'other';
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                pdf: '📄',
+                doc: '📝',
+                docx: '📝',
+                xls: '📊',
+                xlsx: '📊',
+                zip: '📦'
+            };
+            return icons[ext] || '📁';
         }
 
         function startLongPress(e) {
@@ -107,48 +143,48 @@
         }
 
         function handleClick(e) {
-  const item = e.target.closest('.gallery-item');
-  if (!item) return;
-  
-  // अगर पहले से सिलेक्टेड फाइल को क्लिक किया
-  if (selectedFileKey === item.dataset.fileKey) {
-    // अनसिलेक्ट करें
-    item.classList.remove('selected');
-    selectedFileKey = null;
-    document.getElementById('deleteBtn').style.display = 'none';
-  }
-  // अगर कोई फाइल सिलेक्ट नहीं है
-  else if (!selectedFileKey) {
-    openFullView(item.querySelector('img')?.src);
-  }
-}
+            const item = e.target.closest('.gallery-item');
+            if (!item) return;
 
-        function selectFile(item) {
-  // पहले सिलेक्टेड आइटम को रिमूव करें
-  if (selectedFileKey) {
-    document.querySelector(`[data-file-key="${selectedFileKey}"]`).classList.remove('selected');
-  }
-  
-  selectedFileKey = item.dataset.fileKey;
-  item.classList.add('selected');
-  document.getElementById('deleteBtn').style.display = 'block';
-}
-
-        async function deleteSelectedFile() {
-            if (!selectedFileKey || !confirm('Delete this file?')) return;
-
-            try {
-                await database.ref(`users/${currentUser.uid}/files/${selectedFileKey}`).remove();
-                await storage.ref(document.querySelector(`[data-file-key="${selectedFileKey}"]`).dataset.filePath).delete();
-                
-                document.querySelector(`[data-file-key="${selectedFileKey}"]`).remove();
+            if (selectedFileKey === item.dataset.fileKey) {
+                item.classList.remove('selected');
                 selectedFileKey = null;
                 document.getElementById('deleteBtn').style.display = 'none';
-            } catch (error) {
-                console.error('Delete error:', error);
-                alert('Error deleting file!');
+            } else if (!selectedFileKey) {
+                openFullView(item.dataset.fileType, item.querySelector('img, video')?.src || item.dataset.filePath);
             }
         }
+
+        function selectFile(item) {
+            if (selectedFileKey) {
+                document.querySelector(`[data-file-key="${selectedFileKey}"]`).classList.remove('selected');
+            }
+            selectedFileKey = item.dataset.fileKey;
+            item.classList.add('selected');
+            document.getElementById('deleteBtn').style.display = 'block';
+        }
+
+        async function deleteSelectedFile() {
+  if (!selectedFileKey || !confirm('Delete this file?')) return;
+  
+  try {
+    const filePath = document.querySelector(`[data-file-key="${selectedFileKey}"]`).dataset.filePath;
+    
+    // स्टोरेज से डिलीट
+    await storage.ref(filePath).delete();
+    // डेटाबेस से डिलीट
+    await database.ref(`users/${currentUser.uid}/files/${selectedFileKey}`).remove();
+    
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert('Error deleting file!');
+  } finally {
+    // हमेशा UI रिसेट करें
+    selectedFileKey = null;
+    document.getElementById('deleteBtn').style.display = 'none';
+    loadFiles(); // गैलरी रिफ्रेश करें
+  }
+}
 
         function uploadFile() {
             const file = document.getElementById('file-upload').files[0];
@@ -186,7 +222,7 @@
                             name: sanitizedFileName,
                             url: url,
                             path: filePath,
-                            timestamp: Date.now()
+                            type: getFileType(file.name)
                         });
                         progressContainer.style.display = 'none';
                     });
@@ -194,13 +230,28 @@
             );
         }
 
-        function openFullView(url) {
-            document.getElementById('fullViewImg').src = url;
-            document.getElementById('fullView').style.display = 'block';
-        }
+        function openFullView(fileType, url) {
+  const fullContent = document.getElementById('fullContent');
+  fullContent.innerHTML = '';
+  
+  if (fileType === 'image') {
+    fullContent.innerHTML = `<img src="${url}">`;
+  } else if (fileType === 'video') {
+    fullContent.innerHTML = `
+                    <video controls autoplay style="width:100%;max-height:80vh">
+                        <source src="${url}" type="video/mp4">
+                    </video>
+                `;
+  } else {
+    // ... (पहले जैसा) ...
+  }
+  document.getElementById('fullView').style.display = 'block';
+}
 
         function closeFullView() {
             document.getElementById('fullView').style.display = 'none';
+            const video = document.querySelector('#fullContent video');
+            if(video) video.pause();
         }
 
         document.getElementById('file-upload').addEventListener('change', uploadFile);
