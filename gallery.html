@@ -200,8 +200,13 @@
             progressFill.style.width = '0%';
             progressPercentage.textContent = '0%';
 
+            // यूजर का ईमेल सैनिटाइज करें
+            const userEmail = currentUser.email.replace(/[@.]/g, '_');
             const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-            const filePath = `users/${currentUser.uid}/${Date.now()}_${sanitizedFileName}`;
+            
+            // नया फ़ोल्डर स्ट्रक्चर
+            const filePath = `users/${userEmail}/${currentUser.uid}/${Date.now()}_${sanitizedFileName}`;
+            
             const storageRef = storage.ref(filePath);
             const uploadTask = storageRef.put(file);
 
@@ -221,7 +226,7 @@
                         database.ref(`users/${currentUser.uid}/files`).push({
                             name: sanitizedFileName,
                             url: url,
-                            path: filePath,
+                            path: filePath, // पूरा पाथ सेव होगा
                             type: getFileType(file.name)
                         });
                         progressContainer.style.display = 'none';
@@ -229,6 +234,7 @@
                 }
             );
         }
+
 
         function openFullView(fileType, url) {
   const fullContent = document.getElementById('fullContent');
